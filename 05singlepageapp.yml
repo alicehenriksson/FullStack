@@ -1,0 +1,13 @@
+selain->palvelin: HTTP GET https://studies.cs.helsinki.fi/exampleapp/spa
+palvelin-->selain: HTML-Koodi
+selain->palvelin: HTTP GET https://studies.cs.helsinki.fi/exampleapp/main.css
+palvelin-->selain: main.css
+selain->palvelin: HTTP GET https://studies.cs.helsinki.fi/exampleapp/spa.js
+palvelin-->selain: spa.js
+
+javascript koodi pyytää json datan
+
+selain->palvelin: HTTP GET https://studies.cs.helsinki.fi/exampleapp/data.json
+palvelin-->selain: data.json
+selain->palvelin: HTTP GET https://studies.cs.helsinki.fi/favicon.ico
+palvelin-->selain: favicon.ico
