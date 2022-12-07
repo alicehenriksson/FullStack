@@ -1,8 +1,8 @@
-import {useState} from 'react'
-import personsForm from './Components/Persons'
+import {useState,useEffect} from 'react'
+import axios from 'axios'
 
 const FilterForm = ({newFilter,setNewFilter}) => {
-  const handleFilterChange = (event) => setNewFilter(event.target.value)
+  const handleFilterChange = (event) => setNewFilter(event.target.value) //Update text field
   return (
     <form>
       <div>Filter: <input value={newFilter} onChange={handleFilterChange}></input></div>
@@ -11,8 +11,8 @@ const FilterForm = ({newFilter,setNewFilter}) => {
 }
 
 const PersonForm = ({persons,setPersons,newName,setNewName,newNumber,setNewNumber}) => {
-  const handleNameChange = (event) => setNewName(event.target.value)
-  const handleNumberChange = (event) => setNewNumber(event.target.value)
+  const handleNameChange = (event) => setNewName(event.target.value)  //Update text field
+  const handleNumberChange = (event) => setNewNumber(event.target.value) //Update text field
 
   const addInput = (event) => {
     event.preventDefault()
@@ -20,7 +20,7 @@ const PersonForm = ({persons,setPersons,newName,setNewName,newNumber,setNewNumbe
       name: newName,
       number: newNumber
     }
-    if (persons.some(e => e.name.toLowerCase() === newName.toLowerCase())) {
+    if (persons.some(e => e.name.toLowerCase() === newName.toLowerCase())) { //Check if name already exists
       alert(`${newName} is already taken!`)
       setNewName('')
       setNewNumber('')
@@ -53,19 +53,42 @@ const Person = ({name,number}) => (<div>{name} {number}</div>)
 //---------------------------Render App:---------------------------------
 
 const App = () => {
-  const [persons, setPersons] = useState(personsForm) 
+  const [persons, setPersons] = useState([]) 
   const [newName, setNewName] = useState('')
   const [newNumber,setNewNumber] = useState('')
   const [newFilter,setNewFilter] = useState('')
 
+  useEffect(() => { 
+    console.log('effect')
+    axios
+      .get('http://localhost:3001/persons')
+      .then(response => {
+        console.log('promise fulfilled')
+        setPersons(response.data)
+      })
+  }, [])
+
   return (
     <div>
       <h1>Phonebook</h1>
-        <FilterForm newFilter={newFilter} setNewFilter={setNewFilter} />
+        <FilterForm 
+          newFilter={newFilter} 
+          setNewFilter={setNewFilter} 
+        />
       <h2>Add new entry:</h2>
-        <PersonForm persons={persons} setPersons={setPersons} newName={newName} setNewName={setNewName} newNumber={newNumber} setNewNumber={setNewNumber} />
+        <PersonForm 
+          persons={persons} 
+          setPersons={setPersons} 
+          newName={newName} 
+          setNewName={setNewName} 
+          newNumber={newNumber} 
+          setNewNumber={setNewNumber} 
+        />
       <h2>Numbers:</h2>
-        <Persons persons={persons} newFilter={newFilter} />
+        <Persons 
+          persons={persons} 
+          newFilter={newFilter} 
+        />
     </div>
   )
 }
