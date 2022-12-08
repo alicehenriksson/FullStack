@@ -1,6 +1,40 @@
 import {useState,useEffect} from 'react'
-import axios from 'axios'
+import personService from './services/persons'
 
+const errorStyle = {
+  color: 'green',
+  fontSize: 30,
+  marginBottom: 10,
+  borderRadius: 2,
+  height: 'auto',
+  width: 'fit-content',
+}
+const errorStyle2 = {
+  color: 'red',
+  fontSize: 25,
+  marginBottom: 10,
+  borderRadius: 2,
+  height: 'auto',
+  width: 'fit-content',
+}
+
+const Notification = ({message,errorCheck}) => { 
+  if (message === null) {
+    return null
+  }
+  if (errorCheck === true) {
+    return (
+      <div style={errorStyle2}>
+        {message}
+      </div>
+    )
+  }
+  return (
+    <div style={errorStyle}>
+      {message}
+    </div>
+  )
+}
 const FilterForm = ({newFilter,setNewFilter}) => {
   const handleFilterChange = (event) => setNewFilter(event.target.value) //Update text field
   return (
@@ -10,7 +44,7 @@ const FilterForm = ({newFilter,setNewFilter}) => {
   )
 }
 
-const PersonForm = ({persons,setPersons,newName,setNewName,newNumber,setNewNumber}) => {
+const PersonForm = ({persons,setPersons,newName,setNewName,newNumber,setNewNumber,setErrorMessage,setErrorCheck}) => {
   const handleNameChange = (event) => setNewName(event.target.value)  //Update text field
   const handleNumberChange = (event) => setNewNumber(event.target.value) //Update text field
 
@@ -20,15 +54,59 @@ const PersonForm = ({persons,setPersons,newName,setNewName,newNumber,setNewNumbe
       name: newName,
       number: newNumber
     }
-    if (persons.some(e => e.name.toLowerCase() === newName.toLowerCase())) { //Check if name already exists
+    //Check if name already exists
+    if (persons.some(e => e.name.toLowerCase() === newName.toLowerCase())) { 
+      if (persons.number !== input.number) {
+        if (window.confirm(`${input.name} is already added to the phonebook, update number instead?`)) {
+
+          //Update number
+          const current = persons.find(n => n.name === input.name)
+
+          personService
+            .update(current.id,input)
+            .then(() => {
+              setErrorMessage(`Updated: ${current.name}!`)
+              setTimeout(() => {
+                setErrorMessage('')
+              },2000)
+              setNewName('')
+              setNewNumber('')
+
+              personService
+                .getAll()
+                .then(initialPersons => {
+                  setPersons(initialPersons)
+                })
+            })
+            .catch(() => {
+              setErrorCheck(true)
+              setErrorMessage(`Information on ${current.name} has already been removed`)
+              
+              setTimeout(() => {
+                setErrorMessage('')
+                setErrorCheck(false)
+              },2000)
+            })
+
+        }
+        setNewName('')
+        setNewNumber('')
+        return
+      }
       alert(`${newName} is already taken!`)
-      setNewName('')
-      setNewNumber('')
-      return
     }
-    setPersons(persons.concat(input))
-    setNewName('')
-    setNewNumber('')
+      
+    personService
+      .create(input)
+      .then(returnedPerson => {
+        setPersons(persons.concat(returnedPerson))
+        setErrorMessage(`Added: ${returnedPerson.name}!`)
+        setTimeout(() => {
+          setErrorMessage('')
+        },2000)
+        setNewName('')
+        setNewNumber('')
+    })
   } 
 
   return (
@@ -40,15 +118,21 @@ const PersonForm = ({persons,setPersons,newName,setNewName,newNumber,setNewNumbe
   )
 }
 
-const Persons = ({persons,newFilter}) => {
+//Render list of persons and numbers
+const Persons = ({persons,newFilter,removeEntry}) => {
   const lowerCased = newFilter.toLowerCase()
   const filtered = persons.filter(person => person.name.toLowerCase().includes(lowerCased) === true)
   return filtered.map(person =>
-    <Person key={person.name} name={person.name} number={person.number}/>
+    <Person key={person.id} name={person.name} number={person.number} remove={() => removeEntry(person.id)}/>
   )
 }
 
-const Person = ({name,number}) => (<div>{name} {number}</div>)
+const Person = ({name,number,remove}) => (
+  <div>
+    {name} {number}
+    <button onClick={remove}>Delete</button>
+  </div>
+)
 
 //---------------------------Render App:---------------------------------
 
@@ -57,24 +141,52 @@ const App = () => {
   const [newName, setNewName] = useState('')
   const [newNumber,setNewNumber] = useState('')
   const [newFilter,setNewFilter] = useState('')
+  const [errorMessage, setErrorMessage] = useState('')
+  const [errorCheck,setErrorCheck] = useState(false)
 
   useEffect(() => { 
-    console.log('effect')
-    axios
-      .get('http://localhost:3001/persons')
-      .then(response => {
-        console.log('promise fulfilled')
-        setPersons(response.data)
+    personService
+      .getAll()
+      .then(initialPersons => {
+        setPersons(initialPersons)
       })
   }, [])
+
+  const removeEntry = (id) => {
+    if (window.confirm("Do you want to delete this entry?")) {
+      const updatedList = persons.filter(n => n.id !== id)
+      personService
+        .remove(id)
+        .then(_response => {
+          setPersons(updatedList)
+          setErrorMessage('Deleted entry')
+          setTimeout(() => {
+            setErrorMessage('')
+          },2000)
+        })
+        .catch(() => {
+          setErrorCheck(true)
+          setErrorMessage(`That entry has already been deleted`)
+          setTimeout(() => {
+            setErrorMessage('')
+            setErrorCheck(false)
+          },2000)
+        })
+    }
+  }
 
   return (
     <div>
       <h1>Phonebook</h1>
-        <FilterForm 
-          newFilter={newFilter} 
-          setNewFilter={setNewFilter} 
-        />
+      <Notification 
+        message={errorMessage} 
+        setErrorMessage={setErrorMessage}
+        errorCheck={errorCheck}
+      />
+      <FilterForm 
+        newFilter={newFilter} 
+        setNewFilter={setNewFilter} 
+      />
       <h2>Add new entry:</h2>
         <PersonForm 
           persons={persons} 
@@ -83,11 +195,14 @@ const App = () => {
           setNewName={setNewName} 
           newNumber={newNumber} 
           setNewNumber={setNewNumber} 
+          setErrorMessage={setErrorMessage}
+          setErrorCheck={setErrorCheck}
         />
       <h2>Numbers:</h2>
         <Persons 
           persons={persons} 
-          newFilter={newFilter} 
+          newFilter={newFilter}
+          removeEntry={removeEntry} 
         />
     </div>
   )
